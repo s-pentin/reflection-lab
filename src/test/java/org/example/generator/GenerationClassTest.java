@@ -5,8 +5,10 @@ import org.example.classes.BinaryTreeNode;
 import org.example.classes.Cart;
 import org.example.classes.Parcel;
 import org.example.classes.Product;
+import org.example.classes.Rectangle;
 import org.example.classes.Shape;
 import org.example.classes.TextMessage;
+import org.example.classes.Triangle;
 import org.example.classes.UnimplementedService;
 import org.example.exception.NoImplementationFoundException;
 import org.junit.jupiter.api.Test;
@@ -14,7 +16,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -31,10 +32,7 @@ class GenerationClassTest {
     void generatesShapeImplementation() throws ReflectiveOperationException {
         Shape value = assertInstanceOf(Shape.class, generator.generateValueOfType(Shape.class));
         assertNotNull(value);
-
-        Generatable annotation = value.getClass().getAnnotation(Generatable.class);
-        assertNotNull(annotation);
-        assertEquals(Shape.class, annotation.implement());
+        assertTrue(value instanceof Rectangle || value instanceof Triangle);
     }
 
     @Test

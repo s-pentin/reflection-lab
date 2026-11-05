@@ -6,11 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /*
- *  Маркитрующая аннотаця, которая говорит, что выбранная реализацию разрешено генерировть
+ *  Аннотаця, которая говорит какие классы можно реализовать у интерфейса или абстрактного класса
  **/
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Generatable {
-    // какой интерфейс/абстрактный класс реализует
-    Class<?> implement();
+    Class<?>[] impls();
 }

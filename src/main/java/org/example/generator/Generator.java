@@ -5,7 +5,6 @@ import org.example.exception.NoImplementationFoundException;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -20,14 +19,26 @@ import java.util.Set;
 
 public class Generator {
 
-    public Object generateValueOfType(Class<?> clazz) throws InvocationTargetException, InstantiationException, IllegalAccessException, ClassNotFoundException {
+    private final Random random = new Random();
+    private final List<Class<?>> WRAPPER_TYPES = List.of(Byte.class, Short.class, Integer.class,
+            Long.class, Float.class, Double.class, Boolean.class, String.class, Character.class);
+
+    public Object generateValueOfType(Class<?> clazz) throws ReflectiveOperationException {
         return generateClass(clazz, new HashSet<>());
     }
 
-    private Object generateClass(Class<?> clazz, Set<Class<?>> constructing) throws InvocationTargetException,
-            InstantiationException, IllegalAccessException, ClassNotFoundException {
+    public Object generateValueOfType(Class<?> clazzList, Class<?> elementType) throws ReflectiveOperationException {
+        return generateClass(clazzList, new HashSet<>(), elementType);
+    }
 
-        Random random = new Random();
+    private Object generateClass(Class<?> clazz, Set<Class<?>> constructing, Class<?> elementType) throws ReflectiveOperationException {
+        if (List.class.isAssignableFrom(clazz) && clazz.isAssignableFrom(ArrayList.class)) {
+            return generateList(elementType, constructing);
+        }
+        throw new IllegalArgumentException("elementType mast be type List<Type>");
+    }
+
+    private Object generateClass(Class<?> clazz, Set<Class<?>> constructing) throws ReflectiveOperationException {
 
         if (isNumber(clazz)) {
             return generateNumber(clazz, random);
@@ -67,11 +78,7 @@ public class Generator {
         }
 
         if (List.class.isAssignableFrom(clazz) && clazz.isAssignableFrom(ArrayList.class)) {
-            List<Integer> values = new ArrayList<>(length);
-            for (int i = 0; i < length; i++) {
-                values.add((Integer) generateClass(Integer.class, constructing));
-            }
-            return values;
+            return generateValueOfType(clazz, WRAPPER_TYPES.get(random.nextInt(WRAPPER_TYPES.size())));
         }
 
         if (Map.class.isAssignableFrom(clazz) && clazz.isAssignableFrom(HashMap.class)) {
@@ -111,8 +118,7 @@ public class Generator {
         }
     }
 
-    private Object generateType(Type type, Set<Class<?>> constructing) throws InvocationTargetException,
-            InstantiationException, IllegalAccessException, ClassNotFoundException {
+    private Object generateType(Type type, Set<Class<?>> constructing) throws ReflectiveOperationException {
 
         if (type instanceof ParameterizedType parameterized
                 && parameterized.getRawType() instanceof Class<?> rawClass
@@ -137,25 +143,42 @@ public class Generator {
     }
 
     private Class<?> chooseImplementation(Class<?> requestedType, Random random) {
-        List<Class<?>> matches = new ArrayList<>();
+        List<Class<?>> canImplementations = new ArrayList<>();
 
         for (Class<?> candidate : getCandidates()) {
             Generatable annotation = candidate.getAnnotation(Generatable.class);
 
             if (annotation != null
-                    && annotation.implement() == requestedType
-                    && requestedType.isAssignableFrom(candidate)
-                    && !Modifier.isAbstract(candidate.getModifiers())) {
-                matches.add(candidate);
+                    && (requestedType.isAssignableFrom(candidate) || !Modifier.isAbstract(candidate.getModifiers()))) {
+                Class<?>[] impls = annotation.impls();
+                for (Class<?> impl : impls) {
+                    if (requestedType.isAssignableFrom(impl)) {
+                        canImplementations.add(impl);
+                    }
+                }
             }
         }
 
-        if (matches.isEmpty()) {
-            throw new NoImplementationFoundException("No concrete @Generatable implementation for "
-                    + requestedType.getName());
+        if (canImplementations.isEmpty()) {
+            throw new NoImplementationFoundException("No concrete @Generatable implementation for " + requestedType.getName());
         }
 
-        return matches.get(random.nextInt(matches.size()));
+        return canImplementations.get(random.nextInt(canImplementations.size()));
+    }
+
+    private <T> List<T> generateList(Class<T> elementType, Set<Class<?>> constructing) throws ReflectiveOperationException {
+        if (elementType == null) {
+            throw new IllegalArgumentException("elementType must not be null");
+        }
+
+        List<T> values = new ArrayList<>();
+        int length = random.nextInt(1, 6);
+
+        for (int i = 0; i < length; i++) {
+            T value = elementType.cast(generateClass(elementType, constructing));
+            values.add(value);
+        }
+        return values;
     }
 
     private boolean isNumber(Class<?> clazz) {
